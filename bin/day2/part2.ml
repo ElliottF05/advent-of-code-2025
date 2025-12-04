@@ -56,7 +56,7 @@ let main (): string =
   let valid_id_list = find_ids_starting_at 1 ranges max in
   let valid_id_set = IntSet.of_list valid_id_list in
 
-  print_endline (IntSet.fold (fun x acc -> acc ^ (string_of_int x) ^ ", ") valid_id_set "");
+  (* print_endline (IntSet.fold (fun x acc -> acc ^ (string_of_int x) ^ ", ") valid_id_set ""); *)
 
   let sum = IntSet.fold (fun acc curr -> acc + curr) valid_id_set 0 in
   string_of_int sum
