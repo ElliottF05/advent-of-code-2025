@@ -6,7 +6,6 @@ let parse_line (line : string) : int list =
 let solve_line (joltages : int list) : int = 
 
   let rec update_state (state : int list) (prev : int) (curr : int) : int list = 
-    
     let new_state = match state with 
     | [] -> []
     | hd :: tl -> (max hd (10 * prev + curr)) :: update_state tl hd curr
