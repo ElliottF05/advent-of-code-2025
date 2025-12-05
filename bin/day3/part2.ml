@@ -13,7 +13,7 @@ let solve_line (joltages : int list) : int =
 
     new_state
   in
-
+  
   let initial_state = List.init 12 (fun _ -> 0) in
   let _, result = List.fold_left 
     (
