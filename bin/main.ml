@@ -1,2 +1,2 @@
 let () = 
-    print_endline (Day5.Part2.main ())
+    print_endline (Day6.Part2.main ())
