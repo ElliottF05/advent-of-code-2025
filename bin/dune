@@ -1,6 +1,6 @@
 (executable
  (public_name advent-of-code-2025)
  (name main)
- (libraries str advent_of_code_2025)
+ (libraries str advent_of_code_2025 core core_kernel.pairing_heap)
  )
 (include_subdirs qualified)
