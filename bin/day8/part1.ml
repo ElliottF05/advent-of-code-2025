@@ -6,19 +6,19 @@ module Edge = struct
   type t = {
     i: int;
     j: int;
-    len: float
+    len_squared: int
   }
 
   let make positions i j = 
-    let len = 
+    let len_squared = 
       let (x1, y1, z1) = positions.(i) in
       let (x2, y2, z2) = positions.(j) in
-      let dx = Float.of_int (x2 - x1) in
-      let dy = Float.of_int (y2 - y1) in
-      let dz = Float.of_int (z2 - z1) in
-      Float.sqrt (dx*.dx +. dy*.dy +. dz*.dz)
+      let dx = x2 - x1 in
+      let dy = y2 - y1 in
+      let dz = z2 - z1 in
+      dx*dx + dy*dy + dz*dz
     in
-    { i; j; len }
+    { i; j; len_squared }
 end
 
 let line_to_pos line = 
@@ -64,7 +64,7 @@ let main () =
 
   let edges = build_edges positions in
 
-  let heap = Pairing_heap.of_list edges ~cmp:(fun e1 e2 -> Float.compare e1.len e2.len) in
+  let heap = Pairing_heap.of_list edges ~cmp:(fun e1 e2 -> Int.compare e1.len_squared e2.len_squared) in
   let parents = Array.init (Array.length positions) ~f:(fun i -> i) in
 
   List.range 0 1000
