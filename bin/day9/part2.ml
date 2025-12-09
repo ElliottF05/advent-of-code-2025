@@ -75,28 +75,50 @@ let get_corners positions outer_turn_sign =
     )
   |> List.to_array
 
+let between a b x = 
+  let lo = Int.min a b in
+  let hi = Int.max a b in
+  lo <= x && x <= hi
+
+let ranges_overlap a1 a2 b1 b2 = 
+  let lo1 = Int.min a1 a2 in
+  let hi1 = Int.max a1 a2 in
+  let lo2 = Int.min b1 b2 in
+  let hi2 = Int.max b1 b2 in
+  lo1 <= hi2 && lo2 <= hi1
+
+let is_horizontal (x1, y1) (x2, y2) =
+  y1 = y2 && x1 <> x2
+
 let lines_intersect (ax1, ay1) (ax2, ay2) (bx1, by1) (bx2, by2) = 
-  if ax1 = ax2 && by1 = by2 then
-    (Int.min ay1 ay2) <= by1 && by1 <= (Int.max ay1 ay2) && (Int.min bx1 bx2) <= ax1 && ax1 <= (Int.max bx1 bx2)
-  else if ay1 = ay2 && bx1 = bx2 then
-    (Int.min ax1 ax2) <= bx1 && bx1 <= (Int.max ax1 ax2) && (Int.min by1 by2) <= ay1 && ay1 <= (Int.max by1 by2)
-  else if ax1 = ax2 && bx1 = bx2 then
-    ax1 = bx1 && (((Int.max ax1 ax2) >= (Int.min bx1 bx2)) || ((Int.min ax1 ax2) <= (Int.max bx1 bx2)))
-  else if ay1 = ay2 && by1 = by2 then
-    ay2 = by1 && (((Int.max ay1 ay2) >= (Int.min by1 by2)) || ((Int.min ay1 ay2) <= (Int.max by1 by2)))
-  else
-    failwith "lines_intersect received invalid input"
+  let a_h = is_horizontal (ax1, ay1) (ax2, ay2) in
+  let b_h = is_horizontal (bx1, by1) (bx2, by2) in
+  match a_h, b_h with 
+  | true, true -> 
+    (* both horizontal *)
+    ay1 = by1 && (ranges_overlap ax1 ax2 bx1 bx2)
+  | false, false ->
+    (* both vertical *)
+    ax1 = bx1 && (ranges_overlap ay1 ay2 by1 by2)
+  | true, false ->
+    (* a is horizontal, b is vertical *)
+    (between ax1 ax2 bx1) && (between by1 by2 ay1)
+  | false, true ->
+    (* a is vertical, b is horizontal *)
+    (between ay1 ay2 by1) && (between bx1 bx2 ax1)
 
-let rectangle_intersects_line ((x1, y1), (x2, y2)) (line_start, line_end) = 
-  let left = Int.min x1 x2 in
-  let right = Int.max x1 x2 in
-  let top = Int.min y1 y2 in
-  let bottom = Int.max y1 y2 in
-
-  (lines_intersect (left, top) (right, top) line_start line_end)
-  || (lines_intersect (left, bottom) (right, bottom) line_start line_end)
-  || (lines_intersect (left, top) (left, bottom) line_start line_end)
-  || (lines_intersect (right, top) (right, bottom) line_start line_end)
+let rect_edges (x1, y1) (x2, y2) = 
+  [
+    ((x1, y1), (x1, y2)) ;
+    ((x1, y1), (x2, y1)) ;
+    ((x2, y2), (x1, y2)) ;
+    ((x2, y2), (x2, y1)) ;
+  ]
+ 
+let rectangle_intersects_line (corner1, corner2) (line_start, line_end) = 
+  let edges = rect_edges corner1 corner2 in
+  edges
+  |> List.exists ~f:(fun (e1, e2) -> lines_intersect e1 e2 line_start line_end)
 
 
 let rectangle_is_valid corner_pairs rectangle =
@@ -141,9 +163,6 @@ let main () =
   | Some r -> r
   | None -> failwith "no valid rectangles found"
   in
-
-  let ((x1,y1), (x2,y2)) = best_rect in
-  Printf.printf "best rectangle is (%d,%d), (%d,%d) with size %d\n" x1 y1 x2 y2 (get_rect_size best_rect);
 
 
   Int.to_string (get_rect_size best_rect)
