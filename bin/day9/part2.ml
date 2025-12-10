@@ -61,7 +61,7 @@ let find_seed_cell grid =
       if grid.(c).(r) then
         c+1,r+1
       else
-        scan c (r+1)
+        scan (c+1) r
   in
   scan 0 0
 
@@ -116,6 +116,17 @@ let main () : string =
 
   let grid = Array.make_matrix ~dimx:cols ~dimy:rows false in
   fill_grid_edges grid positions x_to_col y_to_row;
+
+  (* List.range 0 (Array.length grid) 
+  |> List.iter ~f:(fun r ->
+    List.range 0 (Array.length grid)
+    |> List.iter ~f:(fun c ->
+      Printf.printf "%s" (if grid.(c).(r) then "X" else ".");
+      if c = (Array.length grid) - 1 then
+        Printf.printf "\n"
+      
+      )
+    ); *)
 
   let seed_c, seed_r = find_seed_cell grid in
   flood_fill grid seed_c seed_r;
