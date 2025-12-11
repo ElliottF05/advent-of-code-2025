@@ -15,50 +15,27 @@ let parse_line line =
 
   name, out_names
 
-let rec dfs adj_map dp dest curr = 
-  if String.(=) curr dest then 
-    1
+let rec dfs adj_map dp curr seen_dac seen_fft = 
+  if String.(=) curr "out" then 
+    if seen_dac && seen_fft then 1 else 0
   else
-    match Hashtbl.find dp curr with
+    match Hashtbl.find dp (curr, seen_dac, seen_fft) with
     | Some x -> x
     | None -> 
       match Hashtbl.find adj_map curr with
       | None -> 0
       | Some next_names -> 
-        let res = List.fold next_names ~init:0 ~f:(fun acc nxt -> acc + (dfs adj_map dp dest nxt)) in
-        Hashtbl.set dp ~key:curr ~data:res;
+        let new_seen_dac = seen_dac || (String.equal curr "dac") in
+        let new_seen_fft = seen_fft || (String.equal curr "fft") in
+        let res = List.fold next_names ~init:0 ~f:(fun acc nxt -> acc + (dfs adj_map dp nxt new_seen_dac new_seen_fft)) in
+        Hashtbl.set dp ~key:(curr, seen_dac, seen_fft) ~data:res;
         res
-
-let get_ways adj_map src dest = 
-  let dp = Hashtbl.create (module String) in
-  dfs adj_map dp dest src
-
-let get_multi_ways adj_map path = 
-  let src, next_names = match path with
-  | hd :: tl -> hd, tl
-  | [] -> failwith "path has length < 2"
-  in
-
-  let _, num_ways = List.fold next_names ~init:(src, 1) ~f:(fun (prev_name, ways) next_name -> 
-    let new_ways = get_ways adj_map prev_name next_name in
-    next_name, ways * new_ways
-    )
-  in
-  num_ways
 
 let main () : string = 
   let lines = In_channel.read_lines file in
 
   let adj_list = List.map lines ~f:parse_line in
   let adj_map = Hashtbl.of_alist_exn (module String) adj_list in
-
-  let paths = [
-    ["svr"; "dac"; "fft"; "out"];
-    ["svr"; "fft"; "dac"; "out"]
-  ]
-  in
-
-  let ways = List.map paths ~f:(get_multi_ways adj_map) in
-  let result = List.fold ways ~init:0 ~f:Int.(+) in
-
+  let dp = Hashtbl.Poly.create () in
+  let result = dfs adj_map dp "svr" false false in
   Int.to_string result
