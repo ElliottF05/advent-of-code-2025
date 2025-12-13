@@ -88,7 +88,7 @@ let build_prefix prefix grid =
       )
     )
 
-let normalize_coords (x1, y1) (x2, y2) = 
+let normalized_corners (x1, y1) (x2, y2) = 
   let left = Int.min x1 x2 in
   let right = Int.max x1 x2 in
   let top = Int.min y1 y2 in
@@ -137,7 +137,7 @@ let main () : string =
   let result = ref 0 in
   Array.cartesian_product positions positions 
   |> Array.iter ~f:(fun (unnormalized_pos1, unnormalized_pos2) ->
-    let pos1, pos2 = normalize_coords unnormalized_pos1 unnormalized_pos2 in
+    let pos1, pos2 = normalized_corners unnormalized_pos1 unnormalized_pos2 in
     let full_area = get_rect_area pos1 pos2 in
     if full_area > !result then
       begin

@@ -1,3 +1,5 @@
+open Core
+
 let file = "./bin/day4/part1.txt"
 
 let in_bounds grid (r, c) = 
@@ -6,48 +8,46 @@ let in_bounds grid (r, c) =
   0 <= r && r < rows && 0 <= c && c < cols
 
 let count_neighbors (grid : char array array) (r, c) : int =
-  let dirs = [
+  let dirs = [|
     (-1,-1); (-1,0); (-1,1);
     (0,-1) ;         (0,1) ;
     (1, -1); (1,0) ; (1,1) ;
-  ]
+  |]
   in
 
   dirs
-  |> List.map (fun (dr, dc) -> (r + dr, c + dc))
-  |> List.filter (in_bounds grid) (* currying! *)
-  |> List.filter (fun (r,c) -> grid.(r).(c) = '@')
-  |> List.length
+  |> Array.map ~f:(fun (dr,dc) -> if in_bounds grid (r+dr,c+dc) && Char.equal grid.(r+dr).(c+dc) '@' then 1 else 0)
+  |> Array.fold ~init:0 ~f:Int.(+)
+
+let rec dfs grid r c = 
+  if not (in_bounds grid (r, c) && Char.equal grid.(r).(c) '@') then
+    0
+  else begin
+    if count_neighbors grid (r,c) < 4 then begin
+      let dirs = [|
+        (-1,-1); (-1,0); (-1,1);
+        (0,-1) ;         (0,1) ;
+        (1, -1); (1,0) ; (1,1) ;
+      |]
+      in
+      grid.(r).(c) <- '.';
+      Array.fold dirs ~init:1 ~f:(fun acc (dr,dc) -> acc + dfs grid (r+dr) (c+dc))
+    end else
+      0
+  end
 
 let main () : string = 
-  let file_content = In_channel.with_open_text file In_channel.input_all in
-  let lines = String.split_on_char '\n' file_content in
+  let lines = In_channel.read_lines file in
 
   let grid = lines
-  |> List.map (fun line -> line |> String.to_seq |> Array.of_seq)
-  |> Array.of_list
+  |> List.to_array
+  |> Array.map ~f:String.to_array
   in
 
-  let rows, cols = Utils.get_rows_and_cols grid in
+  let rows = List.range 0 (Array.length grid) |> List.to_array in
+  let cols = List.range 0 (Array.length grid.(0)) |> List.to_array in
 
-  let rec loop () = 
-    let positions_to_remove = Utils.range_over_2d rows cols
-    |> Seq.filter (fun (r,c) -> grid.(r).(c) = '@')
-    |> Seq.filter (fun (r,c) -> count_neighbors grid (r,c) < 4)
-    |> List.of_seq
-    in
-
-    let removed = List.length positions_to_remove in
-
-    positions_to_remove
-    |> List.iter (fun (r,c) -> grid.(r).(c) <- '.');
-
-    if removed = 0 then
-      0
-    else
-      removed + loop ()
-  in
-
-  let result = loop () in
-
-  string_of_int result
+  Array.cartesian_product rows cols
+  |> Array.map ~f:(fun (r,c) -> dfs grid r c)
+  |> Array.fold ~init:0 ~f:Int.(+)
+  |> Int.to_string
