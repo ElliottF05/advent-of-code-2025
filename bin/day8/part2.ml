@@ -32,12 +32,12 @@ let line_to_pos line =
   | _ -> failwith "invalid line"
 
 let build_edges positions = 
-  let range = List.range 0 (Array.length positions) in
-  let pairs = List.cartesian_product range range in
+  let range = List.range 0 (Array.length positions) |> List.to_array in
+  let pairs = Array.cartesian_product range range in
 
   pairs
-  |> List.map ~f:(fun (p1, p2) -> Edge.make positions p1 p2)
-  |> List.filter ~f:(fun e -> e.Edge.i < e.Edge.j)
+  |> Array.filter ~f:(fun (i,j) -> i < j)
+  |> Array.map ~f:(fun (i, j) -> Edge.make positions i j)
 
 
 let rec find parents i = 
@@ -89,7 +89,7 @@ let main () =
 
   let edges = build_edges positions in
 
-  let heap = Pairing_heap.of_list edges ~cmp:(fun e1 e2 -> Int.compare e1.len_squared e2.len_squared) in
+  let heap = Pairing_heap.of_array edges ~cmp:(fun e1 e2 -> Int.compare e1.len_squared e2.len_squared) in
   let parents = Array.init (Array.length positions) ~f:(fun i -> i) in
 
   let result = add_edges positions heap parents ((Array.length positions) - 1) in
