@@ -1,43 +1,45 @@
 open Core
 
 let file = "./bin/day8/part1.txt"
+let num_edges = 1000
 
-module Edge = struct
-  type t = {
-    i: int;
-    j: int;
-    len_squared: int
-  }
-
-  let make positions i j = 
-    let len_squared = 
-      let (x1, y1, z1) = positions.(i) in
-      let (x2, y2, z2) = positions.(j) in
-      let dx = x2 - x1 in
-      let dy = y2 - y1 in
-      let dz = z2 - z1 in
-      dx*dx + dy*dy + dz*dz
-    in
-    { i; j; len_squared }
-end
-
-let line_to_pos line = 
+let parse_line line = 
   let vals = line
-  |> String.split_on_chars ~on:[',']
-  |> List.map ~f:int_of_string
+  |> String.split ~on:','
+  |> List.map ~f:Int.of_string
   in
 
   match vals with
-  | a :: b :: c :: [] -> (a,b,c)
+  | [a; b; c] -> (a,b,c)
   | _ -> failwith "invalid line"
 
-let build_edges positions = 
-  let range = List.range 0 (Array.length positions) |> List.to_array in
-  let pairs = Array.cartesian_product range range in
+let get_dist_squared positions i j = 
+  let x1, y1, z1 = positions.(i) in
+  let x2, y2, z2 = positions.(j) in
+  let dx = x2 - x1 in
+  let dy = y2 - y1 in
+  let dz = z2 - z1 in
+  dx*dx + dy*dy + dz*dz
 
-  pairs
-  |> Array.filter ~f:(fun (i,j) -> i < j)
-  |> Array.map ~f:(fun (i,j) -> Edge.make positions i j)
+let build_edges positions = 
+  let heap = Pairing_heap.create ~min_size:1024 ~cmp:(fun (_, _, d1) (_, _, d2) -> Int.compare d2 d1) () in
+  let n = Array.length positions in
+  for i = 0 to (n-1) do
+    for j = 0 to (i-1) do
+      let new_dist = get_dist_squared positions i j in
+      if Pairing_heap.length heap < num_edges then
+        Pairing_heap.add heap (i, j, new_dist)
+      else begin
+        let (_, _, prev_dist) = Pairing_heap.top_exn heap in
+        if new_dist < prev_dist then begin
+          Pairing_heap.remove_top heap;
+          Pairing_heap.add heap (i, j, new_dist)
+        end
+      end 
+    done;
+  done;
+
+  Pairing_heap.to_array heap
 
 
 let rec find parents i = 
@@ -60,23 +62,11 @@ let union parents i j =
 let main () = 
   let lines = In_channel.read_lines file in
 
-  let positions = lines |> List.map ~f:line_to_pos |> Array.of_list in
+  let positions = lines |> List.map ~f:parse_line |> Array.of_list in
 
   let edges = build_edges positions in
-
-  let heap = Pairing_heap.of_array edges ~cmp:(fun e1 e2 -> Int.compare e1.len_squared e2.len_squared) in
   let parents = Array.init (Array.length positions) ~f:(fun i -> i) in
-
-  List.range 0 1000
-  |> List.iter ~f:(fun _ ->
-      match Pairing_heap.top heap with
-      | None -> ()
-      | Some edge -> begin
-          union parents edge.i edge.j;
-          Pairing_heap.remove_top heap;
-        end
-    )
-  ;
+  Array.iter edges ~f:(fun (i, j, _) -> union parents i j);
 
   Array.map_inplace parents ~f:(fun p -> find parents p);
 
