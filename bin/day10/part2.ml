@@ -28,57 +28,39 @@ let parse_line line =
     let joltages = parse_joltage_str joltage_str in
     let buttons = remaining
     |> List.take_while ~f:(fun s -> String.contains s '(')
-    |> List.rev
     |> List.map ~f:parse_button_str
     |> List.to_array
     in
     joltages, buttons
   | _ -> failwith "invalid line to parse"
 
+let button_to_mask button = 
+  button
+  |> Array.fold ~init:0 ~f:(fun acc i -> acc lor (1 lsl i))
 
-let button_indices_to_joltage_change buttons num_joltages button_indices = 
-  let diff = Array.create ~len:num_joltages 0 in
-  Array.iter button_indices ~f:(fun button_idx -> 
-      let button = buttons.(button_idx) in
-      Array.iter button ~f:(fun joltage_idx -> diff.(joltage_idx) <- diff.(joltage_idx) + 1)
-    );
-  diff
+let fill_mask_to_diffs_map mask_to_diffs num_joltages buttons = 
+  Array.iter mask_to_diffs ~f:(fun q -> Queue.clear q);
 
-let create_mask_to_diffs_map joltages buttons = 
-  let num_joltages = Array.length joltages in
-  let mask_to_button_groups = Array.create ~len:(1 lsl num_joltages) [] in
+  let button_masks = buttons
+  |> Array.map ~f:button_to_mask
+  in
 
-  let rec find_0_1_button_combinations mask buttons_pressed button_idx = 
+  let rec backtrack button_idx num_pressed diff mask = 
     if button_idx = (Array.length buttons) then begin
-      mask_to_button_groups.(mask) <- buttons_pressed :: mask_to_button_groups.(mask)
-    end else
-      begin
-      (* case 1, don't press this button *)
-      find_0_1_button_combinations mask buttons_pressed (button_idx+1);
+      Queue.enqueue mask_to_diffs.(mask) (num_pressed, diff)
+    end else begin
+      (* case 1, don't choose this button *)
+      backtrack (button_idx + 1) num_pressed diff mask;
 
-      (* case 2, press this button *)
-      let button = buttons.(button_idx) in
-      let new_mask = button
-      |> Array.fold ~init:mask ~f:(fun new_mask joltage_idx -> new_mask lxor (1 lsl joltage_idx))
-      in
-      find_0_1_button_combinations new_mask (button_idx :: buttons_pressed) (button_idx+1)
+      (* case 2, choose this button *)
+      let new_mask = mask lxor button_masks.(button_idx) in
+      let new_diff = Array.copy diff in
+      Array.iter buttons.(button_idx) ~f:(fun i -> new_diff.(i) <- new_diff.(i) + 1);
+      backtrack (button_idx + 1) (num_pressed + 1) new_diff new_mask;
     end
   in
 
-  find_0_1_button_combinations 0 [] 0;
-
-  mask_to_button_groups
-  |> Array.map ~f:(fun button_groups -> 
-    button_groups
-    |> List.to_array 
-    |> Array.map ~f:(fun button_indices ->
-      let diff = button_indices 
-      |> List.to_array 
-      |> (button_indices_to_joltage_change buttons (Array.length joltages)) 
-      in
-      let num_buttons_pressed = List.length button_indices in
-      num_buttons_pressed, diff
-    ))
+  backtrack 0 0 (Array.create ~len:num_joltages 0) 0
 
 let get_odd_mask_from_joltages joltages = 
   Array.foldi joltages ~init:0 ~f:(fun i mask x ->
@@ -98,7 +80,7 @@ let rec dfs memo mask_to_diffs joltages =
     | None ->
       let mask = get_odd_mask_from_joltages joltages in
       let res = mask_to_diffs.(mask)
-      |> Array.fold ~init:999999 ~f:(fun acc (num_pressed, diff) ->
+      |> Queue.fold ~init:999999 ~f:(fun acc (num_pressed, diff) ->
         let new_joltages = Array.map2_exn joltages diff ~f:(fun existing d -> (existing - d) / 2) in
         Int.min acc (num_pressed + 2 * (dfs memo mask_to_diffs new_joltages))
         )
@@ -108,15 +90,15 @@ let rec dfs memo mask_to_diffs joltages =
   end
 
 
-let solve_line line = 
+let solve_line mask_to_diffs line = 
   let joltages, buttons = parse_line line in
-  let mask_to_diffs = create_mask_to_diffs_map joltages buttons in
-  
+  fill_mask_to_diffs_map mask_to_diffs (Array.length joltages) buttons;
   let memo = Hashtbl.Poly.create () in
   dfs memo mask_to_diffs joltages
 
 let main () : string = 
+  let mask_to_diffs = Array.init 1024 ~f:(fun _ -> Queue.create ~capacity:100 ()) in
   In_channel.read_lines file
-  |> List.map ~f:solve_line
+  |> List.map ~f:(solve_line mask_to_diffs)
   |> List.fold ~init:0 ~f:Int.(+)
   |> Int.to_string
